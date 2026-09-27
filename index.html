@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TİD Çeviri Değerlendirmesi</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="topbar">
+  <div class="brand">TİD Çeviri Değerlendirmesi</div>
+  <div class="progress-wrap" aria-live="polite">
+    <div class="progress-label" id="progressLabel"></div>
+    <div class="progress"><div class="progress-bar" id="progressBar"></div></div>
+  </div>
+  <div class="save-status" id="saveStatus" title=""></div>
+</header>
+
+<main id="app" tabindex="-1"></main>
+
+<footer class="foot">
+  <span id="pidLabel"></span>
+  <button class="link" id="langToggle" type="button">EN</button>
+</footer>
+
+<!-- Loaded as scripts (not JSON) so the page also works when opened
+     directly from disk (file://) during in-person sessions.
+     study_config.js: texts, questions, endpoint (edit by hand)
+     stimuli.js:      items, pairs, practice (written by build_stimuli.py) -->
+<script src="study_config.js"></script>
+<script src="stimuli.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
