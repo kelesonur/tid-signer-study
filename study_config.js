@@ -6,7 +6,7 @@
  */
 window.STUDY = {
   studyId: "tid-gen-eval-2026",
-  version: "1",
+  version: "2",  // 2 = Rocketbox avatar instead of the skeleton (28 Sep 2026)
   // Google Apps Script web-app URL (see apps_script.gs). Leave "" for local-only mode.
   endpoint: "https://script.google.com/macros/s/AKfycbyw24WKaEa09QK1iVxX-_MFEccDk4N8gRV3l_FiejOktcyeypUg3XmqN0nmwLUbmKMX/exec",
 
@@ -75,11 +75,11 @@ window.STUDY = {
     video: "",  // e.g. "media/instructions/instructions_tid.mp4"
     text: {
       tr: "Birinci bölümde her ekranda bir video göreceksiniz. Önce Türkçe cümleyi göstermeden videoyu izleyeceksiniz. Sonra ne anladığınızı yazacaksınız. Daha sonra asıl Türkçe cümleyi görüp çeviriyi puanlayacaksınız.\n\n" +
-          "Videoların bazıları çizgilerden oluşan bir figür (iskelet) gösterir. Siyah el işaretleyenin sağ eli, gri el sol elidir. Sağdaki iki küçük kutu elleri büyütülmüş olarak gösterir (üstte sağ el, altta sol el). Bazı videolar sözlükteki gerçek işaret videolarının arka arkaya eklenmesiyle yapılmıştır; bu videolarda işaret yapan kişi değişebilir.\n\n" +
+          "Videoların bazılarında bilgisayarla yapılmış üç boyutlu bir kişi (avatar) işaret yapar, diğerlerinde gerçek bir kişi cümleyi işaret eder.\n\n" +
           "Puanlamadan sonra işaretlerin listesini göreceksiniz. Bir işarete tıklarsanız o işaret tekrar oynar. Yanlış ya da anlaşılmayan işaretleri işaretleyebilirsiniz.\n\n" +
           "İkinci bölümde aynı cümlenin iki çevirisini yan yana göreceksiniz ve hangisinin daha iyi olduğunu seçeceksiniz.",
       en: "In part one, each screen shows one video. First you watch it without the Turkish sentence and write what you understood. Then you see the original Turkish sentence and rate the translation.\n\n" +
-          "Some videos show a stick figure (skeleton). The black hand is the signer's right hand, the grey hand is the left hand. The two small boxes on the right show the hands enlarged (top: right hand, bottom: left hand). Some videos are made by joining real dictionary sign videos; in these the signer may change.\n\n" +
+          "Some videos show a computer-animated 3D signer (avatar); in the others a real person signs the sentence.\n\n" +
           "After rating you will see the list of signs. Click a sign to replay it. You can mark wrong or unclear signs.\n\n" +
           "In part two you will see two translations of the same sentence side by side and choose the better one.",
     },
@@ -94,15 +94,13 @@ window.STUDY = {
   },
 
   finalQuestions: [
-    { id: "f_skeleton", type: "radio", required: true,
-      label: { tr: "Çizgi (iskelet) videolarını anlamak ne kadar kolaydı?", en: "How easy was it to understand the skeleton videos?" },
+    { id: "f_avatar", type: "radio", required: true,
+      label: { tr: "Avatar videolarını anlamak ne kadar kolaydı?", en: "How easy was it to understand the avatar videos?" },
       options: [
         { value: "easy", label: { tr: "Kolay", en: "Easy" } },
         { value: "medium", label: { tr: "Orta", en: "Medium" } },
         { value: "hard", label: { tr: "Zor", en: "Hard" } },
       ] },
-    { id: "f_realclip", type: "textarea", required: false,
-      label: { tr: "Gerçek kişi videolarının eklenmesiyle yapılan çeviriler hakkında ne düşünüyorsunuz?", en: "What do you think about the translations made by joining real sign videos?" } },
     { id: "f_missing", type: "textarea", required: false,
       label: { tr: "Çevirilerde en çok ne eksikti?", en: "What was missing most in the translations?" } },
     { id: "f_use", type: "textarea", required: false,
@@ -122,7 +120,7 @@ window.STUDY = {
   design: {
     // Block-1 conditions, rotated across items by list number (Latin square).
     // build_stimuli.py overwrites this with the conditions it actually produced.
-    block1Conditions: ["skeleton", "realclip", "reference"],
+    block1Conditions: ["avatar", "reference"],
     randomizeItems: true,
   },
 
