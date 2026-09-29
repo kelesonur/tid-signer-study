@@ -83,6 +83,13 @@
       mod_notes: "Araştırmacı notu (katılımcının işaretle söylediği yorumlar, gözlemler)",
       skip: "Atla",
       need_ratings: "Lütfen dört soruyu da cevaplayın.",
+      mode_expert: "Uzman değerlendirmesi",
+      video_n: "Video",
+      q_nm: "Yüz ifadeleri ve baş hareketleri ne kadar uygun?",
+      q_nm_lo: "Hiç uygun değil", q_nm_hi: "Tamamen uygun",
+      need_ratings_ex: "Lütfen beş soruyu da cevaplayın.",
+      ex_watch: "Videoyu en az bir kez sonuna kadar izleyin, sonra puanlayın. İşaretlere tıklayarak tek tek tekrar izleyebilirsiniz.",
+      ex_break: "İstediğiniz zaman ara verebilirsiniz. Aynı bağlantıyı açınca kaldığınız yerden devam edersiniz.",
       need_understand: "Lütfen ne anladığınızı yazın ya da \"Hiçbir şey anlamadım\" seçin.",
       pair_intro_title: "İkinci bölüm: karşılaştırma",
       pair_title: "Hangisi daha iyi?",
@@ -164,6 +171,13 @@
       mod_notes: "Researcher notes (signed comments, observations)",
       skip: "Skip",
       need_ratings: "Please answer all four questions.",
+      mode_expert: "Expert rating",
+      video_n: "Video",
+      q_nm: "How appropriate are the facial expressions and head movements?",
+      q_nm_lo: "Not at all", q_nm_hi: "Completely",
+      need_ratings_ex: "Please answer all five questions.",
+      ex_watch: "Watch the video to the end at least once, then rate it. Click a sign to replay it on its own.",
+      ex_break: "You can take a break at any time. Open the same link again to continue where you stopped.",
       need_understand: "Please write what you understood or tick \"I did not understand anything\".",
       pair_intro_title: "Part two: comparison",
       pair_title: "Which one is better?",
@@ -278,7 +292,7 @@
   const S = {
     pid: params.get("pid") || "",
     list: params.has("list") ? parseInt(params.get("list"), 10) : null,
-    mode: params.get("mode") === "mod" ? "mod" : "self",
+    mode: ["mod", "expert"].includes(params.get("mode")) ? params.get("mode") : "self",
     step: 0,
     plan: [],
     responses: [],   // every saved event, in order
@@ -360,7 +374,51 @@
     return Object.keys(item.conditions || {})[0];
   }
 
+  // Expert panel (29 Sep 2026): every expert rates every sentence in every condition
+  // (design.expertConditions: avatar, gold, retarget, reference). The videos come in
+  // rounds; each round shows each sentence once, so the versions of one sentence are
+  // about a round apart. The condition of a sentence rotates over the rounds
+  // (Latin square), sentences are shuffled within a round, and the same sentence never
+  // appears twice in a row. The order differs between experts (seeded by the code).
+  const EXPERT = () => (STUDY.expert || {});
+  function buildExpertPlan() {
+    const rand = rng(hashStr(S.pid + "|expert|" + STUDY.studyId));
+    const conds = (STUDY.design && STUDY.design.expertConditions) || [];
+    const plan = [{ kind: "consent" }, { kind: "background" }, { kind: "instructions" }];
+    (STUDY.practice || []).forEach((it, i) => {
+      plan.push({ kind: "exitem", practice: true, itemId: it.id, condition: Object.keys(it.conditions)[0], n: i + 1, total: STUDY.practice.length });
+    });
+    const offset = Math.floor(rand() * Math.max(conds.length, 1));
+    const vids = [];
+    let prev = null;
+    for (let r = 0; r < conds.length; r++) {
+      let round = [];
+      items.forEach((it, i) => {
+        // the condition this sentence gets in this round; skip versions that were not built
+        const c = conds[(i + r + offset) % conds.length];
+        if (it.conditions && it.conditions[c] && it.conditions[c].video) round.push({ it, c });
+      });
+      // shuffle the round so that none of the last 6 sentences of the previous round is
+      // among its first 6 (versions of a sentence stay at least ~6 videos apart)
+      const tail = new Set(prev || []);
+      let best = null;
+      for (let tries = 0; tries < 300; tries++) {
+        const cand = shuffle(round, rand);
+        const clash = cand.slice(0, 6).filter((x) => tail.has(x.it.id)).length;
+        if (!best || clash < best.clash) best = { cand, clash };
+        if (!clash) break;
+      }
+      round = best ? best.cand : round;
+      round.forEach((x) => vids.push(x));
+      prev = round.slice(-6).map((x) => x.it.id);
+    }
+    vids.forEach((x, i) => plan.push({ kind: "exitem", itemId: x.it.id, condition: x.c, n: i + 1, total: vids.length }));
+    plan.push({ kind: "final" }, { kind: "done" });
+    return plan;
+  }
+
   function buildPlan() {
+    if (S.mode === "expert") return buildExpertPlan();
     const rand = rng(hashStr(S.pid + "|" + STUDY.studyId));
     const plan = [{ kind: "consent" }, { kind: "background" }, { kind: "instructions" }];
     (STUDY.practice || []).forEach((it, i) => {
@@ -391,9 +449,10 @@
     const st = S.plan[S.step];
     let label = "";
     if (st && st.kind === "item") label = `${st.practice ? t("practice") : t("item")} ${st.n} ${t("of")} ${st.total}`;
+    else if (st && st.kind === "exitem") label = `${st.practice ? t("practice") : t("video_n")} ${st.n} ${t("of")} ${st.total}`;
     else if (st && st.kind === "pair") label = `${t("pair_title")} ${st.n} ${t("of")} ${st.total}`;
     document.getElementById("progressLabel").textContent = label;
-    document.getElementById("pidLabel").textContent = S.pid ? `${S.pid} · L${S.list}${S.mode === "mod" ? " · mod" : ""}` : "";
+    document.getElementById("pidLabel").textContent = S.pid ? (S.mode === "expert" ? `${S.pid} · expert` : `${S.pid} · L${S.list}${S.mode === "mod" ? " · mod" : ""}`) : "";
   }
 
   function go(delta) {
@@ -530,7 +589,7 @@
     const st = S.plan[S.step];
     if (!st) return renderStart();
     const fn = { consent: renderConsent, background: renderBackground, instructions: renderInstructions,
-      item: renderItem, pairIntro: renderPairIntro, pair: renderPair, final: renderFinal, done: renderDone }[st.kind];
+      item: renderItem, exitem: renderExpertItem, pairIntro: renderPairIntro, pair: renderPair, final: renderFinal, done: renderDone }[st.kind];
     fn(st);
     app.focus();
     window.scrollTo(0, 0);
@@ -541,7 +600,7 @@
     if (STUDY.welcome) card.appendChild(h("p", null, L(STUDY.welcome)));
     const pid = h("input", { type: "text", value: S.pid, autocomplete: "off" });
     const list = h("select", null, Array.from({ length: nLists() }, (_, i) => h("option", { value: String(i) }, `L${i}`)));
-    const modeSel = h("select", null, h("option", { value: "self" }, t("mode_self")), h("option", { value: "mod" }, t("mode_mod")));
+    const modeSel = h("select", null, h("option", { value: "self" }, t("mode_self")), h("option", { value: "mod" }, t("mode_mod")), h("option", { value: "expert" }, t("mode_expert")));
     modeSel.value = S.mode;
     const err = h("div", { class: "error" });
     card.append(
@@ -584,13 +643,13 @@
   function fresh() {
     S.plan = buildPlan(); S.step = 0; S.responses = []; S.outbox = []; S.startedAt = now();
     record("session_start", { screen: `${screen.width}x${screen.height}`, userAgent: S.userAgent,
-      plan: S.plan.filter((p) => p.kind === "item" || p.kind === "pair") });
+      plan: S.plan.filter((p) => p.kind === "item" || p.kind === "pair" || p.kind === "exitem") });
     render();
   }
 
   function renderConsent() {
     const card = h("div", { class: "card" }, h("h1", null, t("consent_title")));
-    const c = STUDY.consent || {};
+    const c = (S.mode === "expert" && EXPERT().consent) || STUDY.consent || {};
     const vid = optionalVideo(c.video); if (vid) card.appendChild(vid);
     (L(c.text) || "").split(/\n\n+/).forEach((p) => card.appendChild(h("p", null, p)));
     const cb = h("input", { type: "checkbox" });
@@ -603,7 +662,7 @@
   }
 
   function renderBackground() {
-    const qs = STUDY.background || [];
+    const qs = (S.mode === "expert" && EXPERT().background) || STUDY.background || [];
     const answers = {};
     const card = h("div", { class: "card" }, h("h1", null, t("bg_title")));
     qs.forEach((q) => card.appendChild(formQuestion(q, answers)));
@@ -615,7 +674,7 @@
   }
 
   function renderInstructions() {
-    const ins = STUDY.instructions || {};
+    const ins = (S.mode === "expert" && EXPERT().instructions) || STUDY.instructions || {};
     const card = h("div", { class: "card" }, h("h1", null, t("instr_title")));
     const vid = optionalVideo(ins.video); if (vid) card.appendChild(vid);
     (L(ins.text) || "").split(/\n\n+/).forEach((p) => card.appendChild(h("p", null, p)));
@@ -779,6 +838,101 @@
     }
   }
 
+  // Expert screen: the Turkish sentence is shown from the start (no comprehension step);
+  // five 7-point ratings, the sign list with problem tags (when the video has one) and
+  // sentence-level tags. The condition is not shown to the expert.
+  function renderExpertItem(st) {
+    const item = st.practice ? (STUDY.practice || []).find((p) => p.id === st.itemId) : itemById[st.itemId];
+    const cond = item.conditions[st.condition] || {};
+    const R = {
+      itemId: item.id, condition: st.condition, practice: !!st.practice, category: item.category || "", n: st.n,
+      ratings: { comp: null, adeq: null, gram: null, nat: null, nm: null },
+      segTags: [], itemTags: [], comment: "", t_start: now(), t_submit: null,
+    };
+    let ended = false;
+    const vb = videoBlock(cond.video, { onEnded: () => { ended = true; refresh(); }, onTime: (tt) => highlight(tt) });
+    cleanup.push(() => vb.destroy());
+    const left = h("div", null, vb.el);
+    const right = h("div", null);
+    const card = h("div", { class: "card" },
+      h("h1", null, `${st.practice ? t("practice") : t("video_n")} ${st.n}${st.practice ? "" : " / " + st.total}`),
+      h("div", { class: "source" }, h("div", { class: "muted", style: "font-size:.85rem" }, t("source_label")), item.turkish),
+      h("p", { class: "muted" }, t("ex_watch")),
+      h("div", { class: "grid2" }, left, right));
+    app.appendChild(card);
+    // sign list with problem tags
+    const segs = cond.segments || [];
+    const segEls = [];
+    let selected = -1;
+    const timeline = h("div", { class: "timeline" });
+    const tagPanel = h("div", { class: "tagbox hidden" });
+    const tagList = h("ul", { class: "taglist" });
+    if (segs.length) {
+      left.appendChild(h("div", null, h("h3", null, t("tl_title")), h("p", { class: "muted" }, t("tl_hint")), timeline, tagPanel));
+    }
+    segs.forEach((sg, i) => {
+      const el = h("button", { type: "button", class: "seg", onclick: () => {
+        selected = i; segEls.forEach((x, j) => x.classList.toggle("selected", j === i));
+        vb.playSegment(sg.start, sg.end); showTagPanel();
+      } }, h("div", { class: "g" }, sg.gloss));
+      segEls.push(el); timeline.appendChild(el);
+    });
+    function highlight(tt) { segs.forEach((sg, i) => segEls[i].classList.toggle("playing", tt >= sg.start && tt < sg.end)); }
+    function marks() { segEls.forEach((el, i) => el.classList.toggle("tagged", R.segTags.some((x) => x.segIndex === i))); }
+    function renderTagList() {
+      tagList.innerHTML = "";
+      if (!R.segTags.length) { tagList.appendChild(h("li", { class: "muted" }, t("tag_none"))); return; }
+      R.segTags.forEach((x, k) => {
+        const labels = x.tags.map((id) => tagLabel(SEG_TAGS.find((r) => r[0] === id))).join(", ");
+        tagList.appendChild(h("li", null, h("span", null, h("strong", null, x.gloss), ": ", labels, x.note ? ` (${x.note})` : ""),
+          h("button", { type: "button", class: "link", onclick: () => { R.segTags.splice(k, 1); renderTagList(); marks(); } }, t("tag_remove"))));
+      });
+    }
+    function showTagPanel() {
+      tagPanel.classList.remove("hidden"); tagPanel.innerHTML = "";
+      const sg = segs[selected]; const chosen = new Set();
+      const note = h("input", { type: "text", placeholder: t("tag_note") });
+      tagPanel.append(h("div", null, h("strong", null, t("tag_for") + " "), sg.gloss), chipGroup(SEG_TAGS, chosen), note,
+        h("div", { class: "actions" }, h("button", { type: "button", onclick: () => {
+          if (!chosen.size) return;
+          R.segTags.push({ segIndex: selected, gloss: sg.gloss, strategy: sg.strategy || "", tags: [...chosen], note: note.value, ts: now() });
+          renderTagList(); marks(); showTagPanel();
+        } }, t("tag_add"))), tagList);
+      renderTagList();
+    }
+    // ratings
+    const itemChosen = new Set();
+    const comment = h("textarea", null);
+    comment.addEventListener("input", () => { R.comment = comment.value; });
+    const msg = h("div", { class: "error" });
+    const nextBtn = h("button", { type: "button", class: "primary" }, t("next"));
+    const canSkip = params.get("skip") === "1";
+    const actions = h("div", { class: "actions" });
+    if (canSkip) actions.appendChild(h("button", { type: "button", onclick: () => { record("expert_item_skipped", { itemId: item.id, condition: st.condition }); go(1); } }, t("skip")));
+    actions.appendChild(nextBtn);
+    right.append(
+      h("h2", null, t("rate_title")),
+      scale("comp", "q_comp", "q_comp_lo", "q_comp_hi", null, (v) => { R.ratings.comp = v; }),
+      scale("adeq", "q_adeq", "q_adeq_lo", "q_adeq_hi", null, (v) => { R.ratings.adeq = v; }),
+      scale("gram", "q_gram", "q_gram_lo", "q_gram_hi", null, (v) => { R.ratings.gram = v; }),
+      scale("nat", "q_nat", "q_nat_lo", "q_nat_hi", null, (v) => { R.ratings.nat = v; }),
+      scale("nm", "q_nm", "q_nm_lo", "q_nm_hi", null, (v) => { R.ratings.nm = v; }),
+      h("h3", null, t("item_issues")),
+      chipGroup(ITEM_TAGS, itemChosen, () => { R.itemTags = [...itemChosen]; }),
+      h("label", { class: "field" }, h("span", null, t("comment")), comment),
+      h("p", { class: "muted" }, t("ex_break")), msg, actions);
+    function refresh() { nextBtn.disabled = !(ended || canSkip); }
+    refresh();
+    nextBtn.addEventListener("click", () => {
+      const r = R.ratings;
+      if (Object.values(r).some((v) => v == null)) { msg.textContent = t("need_ratings_ex"); return; }
+      R.t_submit = now();
+      R.video = { plays: vb.state.plays, ended: vb.state.ended, slowUsed: vb.state.slowUsed, loopUsed: vb.state.loopUsed, segPlays: vb.state.segPlays };
+      record("expert_item", { ...R, turkish: item.turkish, videoSrc: cond.video || "" });
+      go(1);
+    });
+  }
+
   function renderPairIntro() {
     const p = STUDY.pairIntro || {};
     const card = h("div", { class: "card" }, h("h1", null, t("pair_intro_title")));
@@ -845,7 +999,7 @@
   }
 
   function renderFinal() {
-    const qs = STUDY.finalQuestions || [];
+    const qs = (S.mode === "expert" && EXPERT().finalQuestions) || STUDY.finalQuestions || [];
     const answers = {};
     const card = h("div", { class: "card" }, h("h1", null, t("final_title")));
     qs.forEach((q) => card.appendChild(formQuestion(q, answers)));
@@ -888,7 +1042,8 @@
   document.getElementById("langToggle").textContent = lang === "tr" ? "EN" : "TR";
 
   // --------------------------------------------------------------- start
-  if (S.pid && S.list != null && !Number.isNaN(S.list)) begin();
+  if (S.pid && S.mode === "expert") { S.list = 0; begin(); }
+  else if (S.pid && S.list != null && !Number.isNaN(S.list)) begin();
   else {
     if (S.pid && (S.list == null || Number.isNaN(S.list))) {
       const m = S.pid.match(/(\d+)\s*$/);

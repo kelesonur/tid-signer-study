@@ -6,7 +6,7 @@
  */
 window.STUDY = {
   studyId: "tid-gen-eval-2026",
-  version: "2",  // 2 = Rocketbox avatar instead of the skeleton (28 Sep 2026)
+  version: "3",  // 2 = Rocketbox avatar (28 Sep 2026); 3 = Turkish literacy questions + expert panel (29 Sep 2026)
   // Google Apps Script web-app URL (see apps_script.gs). Leave "" for local-only mode.
   endpoint: "https://script.google.com/macros/s/AKfycbyw24WKaEa09QK1iVxX-_MFEccDk4N8gRV3l_FiejOktcyeypUg3XmqN0nmwLUbmKMX/exec",
 
@@ -66,6 +66,21 @@ window.STUDY = {
       ] },
     { id: "interpreter", type: "radio", required: true, label: { tr: "TİD tercümanı olarak çalışıyor musunuz?", en: "Do you work as a TİD interpreter?" },
       options: [{ value: "yes", label: { tr: "Evet", en: "Yes" } }, { value: "no", label: { tr: "Hayır", en: "No" } }] },
+    // 29 Sep 2026: participants write what they understood in Turkish, so Turkish literacy is asked
+    { id: "tr_read", type: "radio", required: true, label: { tr: "Türkçe okuma becerinizi nasıl değerlendirirsiniz?", en: "How do you rate your Turkish reading?" },
+      options: [
+        { value: "very_good", label: { tr: "Çok iyi", en: "Very good" } },
+        { value: "good", label: { tr: "İyi", en: "Good" } },
+        { value: "medium", label: { tr: "Orta", en: "Medium" } },
+        { value: "weak", label: { tr: "Zayıf", en: "Weak" } },
+      ] },
+    { id: "tr_write", type: "radio", required: true, label: { tr: "Türkçe yazma becerinizi nasıl değerlendirirsiniz?", en: "How do you rate your Turkish writing?" },
+      options: [
+        { value: "very_good", label: { tr: "Çok iyi", en: "Very good" } },
+        { value: "good", label: { tr: "İyi", en: "Good" } },
+        { value: "medium", label: { tr: "Orta", en: "Medium" } },
+        { value: "weak", label: { tr: "Zayıf", en: "Weak" } },
+      ] },
     { id: "city", type: "text", required: false, label: { tr: "Hangi şehirde büyüdünüz?", en: "Which city did you grow up in?" } },
     { id: "seen_avatar", type: "radio", required: true, label: { tr: "Daha önce işaret dili yapan bir avatar ya da animasyon gördünüz mü?", en: "Have you seen a signing avatar or animation before?" },
       options: [{ value: "yes", label: { tr: "Evet", en: "Yes" } }, { value: "no", label: { tr: "Hayır", en: "No" } }] },
@@ -115,6 +130,77 @@ window.STUDY = {
     { id: "f_other", type: "textarea", required: false, label: { tr: "Eklemek istediğiniz başka bir şey var mı?", en: "Anything else you would like to add?" } },
   ],
 
+  // Expert panel (?mode=expert, 29 Sep 2026): fluent TİD signers rate every sentence in all
+  // four versions (our avatar translation, gold glosses + our stitching, the real sentence on
+  // the avatar, the real video). See app.js buildExpertPlan.
+  expert: {
+    consent: {
+      video: "",
+      text: {
+        tr: "Bu çalışma Boğaziçi Üniversitesi Dilbilim Bölümü'nde yürütülen bir araştırmanın parçasıdır. Bilgisayarın Türkçeden Türk İşaret Dili'ne (TİD) yaptığı çevirileri uzman gözüyle değerlendirmenizi istiyoruz.\n\n" +
+            "Her videoda asıl Türkçe cümleyi göreceksiniz. Videoyu izleyip beş soruyu puanlayacak, sorunlu işaretleri işaretleyeceksiniz. Toplam [DOLDURUN] video vardır; değerlendirme yaklaşık [DOLDURUN] saat sürer ve birden fazla oturumda yapılabilir.\n\n" +
+            "Yanıtlarınız adınız olmadan, yalnızca bir kodla saklanır. İstediğiniz zaman bırakabilirsiniz. Etik kurul onay numarası: [DOLDURUN]. Sorularınız için: [DOLDURUN e-posta].",
+        en: "This study is part of research at the Department of Linguistics, Boğaziçi University. We ask you, as an expert, to evaluate computer translations from Turkish into Turkish Sign Language (TİD).\n\n" +
+            "Each screen shows the original Turkish sentence and one video. You watch the video, answer five rating questions and mark signs with problems. There are [FILL IN] videos; the evaluation takes about [FILL IN] hours and can be done in several sessions.\n\n" +
+            "Your answers are stored without your name, only with a code. You can stop at any time. Ethics approval number: [FILL IN]. Contact: [FILL IN e-mail].",
+      },
+    },
+    background: [
+      { id: "ex_role", type: "radio", required: true, label: { tr: "Kendinizi nasıl tanımlarsınız?", en: "How do you describe yourself?" },
+        options: [
+          { value: "deaf", label: { tr: "Sağır TİD kullanıcısı", en: "Deaf TİD signer" } },
+          { value: "coda", label: { tr: "İşiten, sağır ailede büyüdüm (CODA)", en: "Hearing, grew up in a Deaf family (CODA)" } },
+          { value: "interpreter", label: { tr: "TİD tercümanı", en: "TİD interpreter" } },
+          { value: "teacher", label: { tr: "TİD eğitmeni", en: "TİD teacher" } },
+          { value: "researcher", label: { tr: "İşaret dili araştırmacısı", en: "Sign language researcher" } },
+        ] },
+      { id: "ex_tid_age", type: "radio", required: true, label: { tr: "TİD'i ne zaman öğrenmeye başladınız?", en: "When did you start learning TİD?" },
+        options: [
+          { value: "birth", label: { tr: "Doğuştan / ailemden", en: "From birth / from family" } },
+          { value: "0-6", label: { tr: "Okul öncesi (0-6 yaş)", en: "Before school (age 0-6)" } },
+          { value: "7-12", label: { tr: "İlkokulda (7-12 yaş)", en: "Primary school (age 7-12)" } },
+          { value: "13+", label: { tr: "13 yaşından sonra", en: "After age 13" } },
+        ] },
+      { id: "ex_years", type: "text", required: true, label: { tr: "Kaç yıldır TİD kullanıyorsunuz (ya da tercümanlık / eğitmenlik yapıyorsunuz)?", en: "For how many years have you used TİD (or worked as an interpreter / teacher)?" } },
+      { id: "tr_read", type: "radio", required: true, label: { tr: "Türkçe okuma becerinizi nasıl değerlendirirsiniz?", en: "How do you rate your Turkish reading?" },
+        options: [
+          { value: "very_good", label: { tr: "Çok iyi", en: "Very good" } },
+          { value: "good", label: { tr: "İyi", en: "Good" } },
+          { value: "medium", label: { tr: "Orta", en: "Medium" } },
+          { value: "weak", label: { tr: "Zayıf", en: "Weak" } },
+        ] },
+      { id: "tr_write", type: "radio", required: true, label: { tr: "Türkçe yazma becerinizi nasıl değerlendirirsiniz?", en: "How do you rate your Turkish writing?" },
+        options: [
+          { value: "very_good", label: { tr: "Çok iyi", en: "Very good" } },
+          { value: "good", label: { tr: "İyi", en: "Good" } },
+          { value: "medium", label: { tr: "Orta", en: "Medium" } },
+          { value: "weak", label: { tr: "Zayıf", en: "Weak" } },
+        ] },
+      { id: "ex_seen_avatar", type: "radio", required: true, label: { tr: "Daha önce işaret dili yapan bir avatar ya da animasyon gördünüz mü?", en: "Have you seen a signing avatar or animation before?" },
+        options: [{ value: "yes", label: { tr: "Evet", en: "Yes" } }, { value: "no", label: { tr: "Hayır", en: "No" } }] },
+    ],
+    instructions: {
+      video: "",
+      text: {
+        tr: "Her ekranda asıl Türkçe cümleyi ve bir videoyu göreceksiniz. Bazı videolarda bilgisayarla yapılmış üç boyutlu bir kişi (avatar), bazılarında gerçek bir kişi işaret yapar. Aynı cümleyi farklı videolarda birkaç kez göreceksiniz; her videoyu kendi başına değerlendirin.\n\n" +
+            "Videoyu en az bir kez sonuna kadar izleyin, sonra beş soruyu 1-7 arasında puanlayın: anlaşılırlık, anlamın aktarılması, TİD dilbilgisi, hareketlerin doğallığı, yüz ifadeleri ve baş hareketleri.\n\n" +
+            "Videonun altında işaretlerin listesi varsa bir işarete tıklayarak onu tek başına izleyebilir ve sorunlu işaretleri işaretleyebilirsiniz. Cümlenin geneliyle ilgili sorunları da seçebilir, yorum yazabilirsiniz.\n\n" +
+            "İstediğiniz zaman ara verebilirsiniz. Aynı bağlantıyı açınca kaldığınız yerden devam edersiniz.",
+        en: "Each screen shows the original Turkish sentence and one video. Some videos show a computer-animated 3D signer (avatar), others a real person. You will see the same sentence several times in different videos; rate each video on its own.\n\n" +
+            "Watch the video to the end at least once, then answer five questions on a 1-7 scale: how understandable it is, how well it conveys the meaning, TİD grammar, naturalness of the movement, and facial expressions and head movements.\n\n" +
+            "If a list of signs is shown under the video, click a sign to replay it on its own and mark signs with problems. You can also mark problems of the whole sentence and write comments.\n\n" +
+            "You can take a break at any time. Open the same link again to continue where you stopped.",
+      },
+    },
+    finalQuestions: [
+      { id: "ex_f_avatar", type: "textarea", required: false,
+        label: { tr: "Avatarın işaretlemesinde en önemli sorunlar nelerdi?", en: "What were the most important problems in the avatar's signing?" } },
+      { id: "ex_f_grammar", type: "textarea", required: false,
+        label: { tr: "Çevirilerde en sık gördüğünüz TİD dilbilgisi hataları nelerdi?", en: "Which TİD grammar errors did you see most often in the translations?" } },
+      { id: "ex_f_other", type: "textarea", required: false, label: { tr: "Eklemek istediğiniz başka bir şey var mı?", en: "Anything else you would like to add?" } },
+    ],
+  },
+
   thanksVideo: "",
 
   design: {
@@ -122,6 +208,8 @@ window.STUDY = {
     // build_stimuli.py overwrites this with the conditions it actually produced.
     block1Conditions: ["avatar", "reference"],
     randomizeItems: true,
+    // expert panel conditions; build_stimuli.py overwrites this
+    expertConditions: [],
   },
 
   items: [],
