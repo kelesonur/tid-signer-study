@@ -462,14 +462,30 @@
       const c = conds.find((k) => it.conditions && it.conditions[k] && it.conditions[k].video) || Object.keys(it.conditions)[0];
       plan.push({ kind: "ditem", practice: true, itemId: it.id, condition: c, n: i + 1, total: STUDY.practice.length });
     });
-    const order = STUDY.design.randomizeItems === false ? items.slice() : shuffle(items, rand);
+    // condition of each sentence: fixed by its index and the list (Latin square)
+    const condOf = (it) => {
+      let c = conds[(items.indexOf(it) + (S.list || 0)) % conds.length];
+      if (!(it.conditions && it.conditions[c] && it.conditions[c].video)) c = conds.find((k) => it.conditions && it.conditions[k] && it.conditions[k].video);
+      return c;
+    };
+    // ORDER_BALANCE_2026_10_06 (Onur: too many real videos came one after another): random order,
+    // but never more than 2 videos of the same condition in a row, and each half of the session
+    // has about the same number of each condition (re-drawn with the participant's seed until both hold)
+    let order = items.slice();
+    if (STUDY.design.randomizeItems !== false) {
+      const ok = (o) => {
+        let run = 1;
+        for (let i = 1; i < o.length; i++) { run = condOf(o[i]) === condOf(o[i - 1]) ? run + 1 : 1; if (run > 2) return false; }
+        const h = Math.floor(o.length / 2), cnt = (arr) => { const m = {}; arr.forEach((it) => { const c = condOf(it); m[c] = (m[c] || 0) + 1; }); return m; };
+        const a = cnt(o.slice(0, h)), b = cnt(o.slice(h));
+        return conds.every((c) => Math.abs((a[c] || 0) - (b[c] || 0)) <= 1);
+      };
+      for (let tries = 0; tries < 5000; tries++) { order = shuffle(items, rand); if (ok(order)) break; }
+    }
     const half = Math.floor(order.length / 2);
     order.forEach((it, i) => {
       if (i > 0 && i === half) plan.push({ kind: "break", n: i, total: order.length });
-      const idx = items.indexOf(it);
-      let c = conds[(idx + (S.list || 0)) % conds.length];
-      if (!(it.conditions && it.conditions[c] && it.conditions[c].video)) c = conds.find((k) => it.conditions && it.conditions[k] && it.conditions[k].video);
-      plan.push({ kind: "ditem", itemId: it.id, condition: c, n: i + 1, total: order.length });
+      plan.push({ kind: "ditem", itemId: it.id, condition: condOf(it), n: i + 1, total: order.length });
     });
     plan.push({ kind: "final" }, { kind: "done" });
     return plan;
