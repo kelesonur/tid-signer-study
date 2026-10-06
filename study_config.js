@@ -184,12 +184,12 @@ window.STUDY = {
       text: {
         tr: "Her cümle için üç video art arda gelir. İkisi aynı üç boyutlu kişiyi (avatarı) gösterir ve farklı yöntemlerle üretilmiştir; biri gerçek bir işaretçinin videosudur. Gerçek videoyu da aynı sorularla değerlendirin. Videolar A, B, C diye adlandırılır.\n\n" +
             "1. İlk videoyu (A) Türkçe cümleyi görmeden izleyin ve ne anladığınızı Türkçe yazın.\n" +
-            "2. Sonra Türkçe cümle gösterilir. Her video için altı soruyu cevaplayın (1–5): anlaşılırlık, işaretlerin doğruluğu, TİD dilbilgisi, hareketlerin doğallığı, anlamı ne kadar aktardığı ve eksik ya da yanlış bilgi olup olmadığı.\n" +
+            "2. Sonra Türkçe cümle gösterilir. Her video için sekiz soruyu cevaplayın: ne kadar anladığınız, anlamın doğruluğu, eksik ya da yanlış bilgi, el işaretleri, cümlenin doğallığı, hareketlerin akıcılığı, genel değerlendirme ve TİD dilbilgisi (1–5).\n" +
             "3. Aynı ekranda isterseniz sorunları işaretleyebilir ve kısa bir not yazabilirsiniz.\n\n" +
             "Ortada bir ara ekranı vardır. İstediğiniz zaman da durabilirsiniz; aynı bağlantıyı açınca kaldığınız yerden devam edersiniz.",
         en: "For each sentence you will see three videos one after another. Two show the same 3D signer (avatar), produced in different ways; one is a video of a real signer. Rate the real video with the same questions. Videos are labelled A, B, C.\n\n" +
             "1. Watch the first video (A) without the Turkish sentence and write in Turkish what you understood.\n" +
-            "2. Then the Turkish sentence is shown. For each video answer six questions (1–5): understandability, correctness of the signs, TİD grammar, naturalness of the movement, how well it conveys the meaning, and whether information is missing or wrong.\n" +
+            "2. Then the Turkish sentence is shown. For each video answer eight questions: how much you understood, correct meaning, missing or wrong information, hand signs, naturalness of the sentence, smoothness of the movement, overall, and TİD grammar (1–5).\n" +
             "3. On the same screen you can mark problems and write a short note if you like.\n\n" +
             "There is a break halfway through. You can also stop at any time; open the same link again to continue where you stopped.",
       },
