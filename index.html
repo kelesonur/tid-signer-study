@@ -3,6 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light">
 <title>TİD Çeviri Değerlendirmesi</title>
 <link rel="stylesheet" href="style.css">
 </head>
@@ -20,8 +21,14 @@
 
 <footer class="foot">
   <span id="pidLabel"></span>
+  <a class="hidden" id="freeLink" href="serbest.html" target="_blank" rel="noopener">Serbest çeviri</a>
   <button class="link" id="langToggle" type="button">EN</button>
 </footer>
+<script>
+  // researcher-only link to the free-translation page, shown in expert/moderator modes
+  const _mode = new URLSearchParams(location.search).get("mode");
+  if (_mode === "mod" || _mode === "expert") document.getElementById("freeLink").classList.remove("hidden");
+</script>
 
 <!-- Loaded as scripts (not JSON) so the page also works when opened
      directly from disk (file://) during in-person sessions.

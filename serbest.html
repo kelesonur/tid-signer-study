@@ -1,0 +1,321 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light">
+<meta name="tid-server" content="">
+<title>Serbest çeviri · TİD</title>
+<link rel="stylesheet" href="style.css">
+<!-- Free translation: this page sends the sentence to a server running on the
+     researcher's own computer (signer_study/free_translation/server.py), which
+     asks Claude for the TİD gloss and renders the avatar/skeleton video.
+     Nothing here is part of the participant study. -->
+<style>
+  html { color-scheme: light; }
+  .row { display: flex; flex-wrap: wrap; gap: 10px 20px; align-items: center; margin: 10px 0; }
+  .row .spacer { flex: 1; }
+  #status { min-height: 1.5em; margin: 10px 0; }
+  #status.err { font-weight: bold; }
+  .gloss { font-variant: small-caps; letter-spacing: .03em; font-size: 1.1rem; border: 1px solid var(--line); padding: 6px 10px; margin: 4px 0 10px; word-break: break-word; }
+  table.tok { border-collapse: collapse; width: 100%; font-size: .95rem; }
+  table.tok td, table.tok th { border-top: 1px solid var(--light); padding: 3px 6px; text-align: left; vertical-align: top; }
+  table.tok tr.missing td { font-style: italic; color: var(--grey); }
+  .seg.missing { border-style: solid; color: var(--grey); text-decoration: line-through; cursor: default; }
+  .dot { display: inline-block; width: .6em; height: .6em; border: 1px solid var(--line); border-radius: 50%; margin-right: 6px; vertical-align: .05em; }
+  .dot.on { background: var(--ink); }
+  details { margin: 12px 0; }
+  details > summary { cursor: pointer; }
+  .player video { background: #fff; }
+  .hint { font-size: .9rem; }
+  code { font-size: .9em; }
+  input[type=password] {
+    font: inherit; width: 100%; padding: 6px 8px; border: 1px solid var(--line);
+    border-radius: 0; background: var(--bg); color: var(--ink);
+  }
+  .remember { display: flex; align-items: flex-start; gap: 8px; margin: -4px 0 12px; cursor: pointer; font-size: .9rem; }
+  .remember input { margin-top: .35em; }
+  #keyWarn { border: 1px solid var(--line); padding: 8px 10px; margin: 10px 0 14px; }
+</style>
+</head>
+<body>
+<header class="topbar">
+  <div class="brand">Serbest çeviri</div>
+  <div class="progress-wrap"></div>
+  <div class="save-status" id="conn" title=""><span class="dot" id="connDot"></span><span id="connText">sunucu denetleniyor…</span></div>
+</header>
+
+<main id="app" tabindex="-1">
+  <h1>Türkçe → TİD serbest çeviri</h1>
+  <p class="muted">Bir Türkçe cümle yazın. Bilgisayarda çalışan yerel sunucu cümleyi Claude ile TİD gloss dizisine çevirir,
+    işaretleri TİD Sözlük videolarından birleştirir ve avatar ya da iskelet videosu üretir. Bu sayfa değerlendirme çalışmasının parçası değildir.</p>
+
+  <label class="field"><span>Türkçe cümle</span>
+    <textarea id="sentence" maxlength="400" placeholder="Örn. Benim adım Ayşe, İzmir'de yaşıyorum."></textarea>
+  </label>
+  <label class="field"><span>API anahtarı</span>
+    <input type="password" id="apiKey" name="tid-api-key" autocomplete="off" spellcheck="false"
+           placeholder="Anthropic anahtarı (yalnızca yerel sunucuya gider)">
+  </label>
+  <label class="remember"><input type="checkbox" id="rememberKey">
+    Bu sekmede hatırla (sekme kapanınca silinir; GitHub’a yazılmaz)</label>
+  <p id="keyWarn" class="hint hidden">Bu sayfa GitHub Pages (https) üzerinden açıldı. Yazacağınız API anahtarı tarayıcıda kalıcı saklanmaz ve Claude’a doğrudan gitmez; yalnızca sizin Mac’inizde çalışan yerel sunucuya (<code>http://127.0.0.1</code>) gönderilir. Sunucunun açık olması gerekir (<code>signer_study/free_translation/run_server.sh</code>). Bu sayfaya güvenmiyorsanız bu alanı kullanmayın.</p>
+  <div class="row">
+    <div class="radio-row" role="radiogroup" aria-label="Görünüm">
+      <label><input type="radio" name="figure" value="avatar" checked> Avatar</label>
+      <label><input type="radio" name="figure" value="skeleton"> İskelet</label>
+    </div>
+    <span class="spacer"></span>
+    <span class="muted hint">Ctrl/⌘ + Enter</span>
+    <button class="primary" id="go" type="button">Çevir</button>
+  </div>
+
+  <details id="adv">
+    <summary>Gelişmiş: gloss'u elle girme, sunucu adresi</summary>
+    <label class="field"><span>Gloss (isteğe bağlı; doluysa Claude kullanılmaz)</span>
+      <input type="text" id="gloss" placeholder="Örn. BENİM AD AYŞE BEN İZMİR YAŞAMAK">
+    </label>
+    <label class="field"><span>Yerel sunucu adresi</span>
+      <input type="text" id="server" spellcheck="false">
+    </label>
+    <div class="row"><button type="button" id="check">Bağlantıyı dene</button></div>
+  </details>
+
+  <div id="status" aria-live="polite"></div>
+
+  <section id="result" class="hidden">
+    <div class="grid2">
+      <div>
+        <div class="player"><video id="video" controls playsinline preload="auto"></video></div>
+        <div class="controls">
+          <button type="button" class="chip" id="replay">Baştan oynat</button>
+          <button type="button" class="chip" id="slow" aria-pressed="false">Yavaş (0,5×)</button>
+          <button type="button" class="chip" id="loop" aria-pressed="false">Döngü</button>
+          <span class="spacer"></span>
+          <a id="download" download>Videoyu indir</a>
+        </div>
+        <div class="timeline" id="timeline"></div>
+        <div class="legend">
+          <span><i class="fs"></i>parmak alfabesi</span>
+          <span><i class="oov"></i>sözlükte yok, yerine başka işaret</span>
+          <span><i class="agr"></i>uyum fiili / işaret etme</span>
+        </div>
+      </div>
+      <div>
+        <h3>Gloss</h3>
+        <div class="gloss" id="gGloss"></div>
+        <div class="muted hint" id="gSource"></div>
+        <h3>Sentezlenen dizi</h3>
+        <div class="gloss" id="gRewritten"></div>
+        <h3>İşaretler</h3>
+        <table class="tok"><thead><tr><th>Gloss</th><th>Nasıl üretildi</th></tr></thead><tbody id="tokens"></tbody></table>
+        <p class="muted hint" id="timing"></p>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer class="foot">
+  <span>TİD çeviri projesi · yerel sunucu: <code>signer_study/free_translation/run_server.sh</code></span>
+  <a href="#" id="safariHint">Safari'de çalışmıyor mu?</a>
+</footer>
+
+<script>
+(function () {
+  "use strict";
+  const $ = (id) => document.getElementById(id);
+  const DEFAULT_SERVER = "http://127.0.0.1:8765";
+  const params = new URLSearchParams(location.search);
+  // filled in by server.py when it serves this page itself (empty on GitHub Pages)
+  const servedBy = (document.querySelector('meta[name="tid-server"]') || {}).content ? location.origin : "";
+  $("server").value = params.get("server") || servedBy || localStorage.getItem("tidFreeServer") || DEFAULT_SERVER;
+  const KEY_STORE = "tidFreeApiKey";
+  const KEY_REMEMBER = "tidFreeRememberKey";
+  if (sessionStorage.getItem(KEY_REMEMBER) === "1") {
+    $("apiKey").value = sessionStorage.getItem(KEY_STORE) || "";
+    $("rememberKey").checked = true;
+  }
+  const publicHost = location.protocol === "https:" &&
+    !/^(127\.0\.0\.1|localhost|\[::1\])$/i.test(location.hostname);
+  if (publicHost) $("keyWarn").classList.remove("hidden");
+
+  let busy = false, blobUrl = null, pollTimer = null, segs = [], segEls = [];
+  const video = $("video");
+  function pageKey() { return $("apiKey").value.trim(); }
+  function saveKeyPref() {
+    if ($("rememberKey").checked && pageKey()) {
+      sessionStorage.setItem(KEY_REMEMBER, "1");
+      sessionStorage.setItem(KEY_STORE, pageKey());
+    } else {
+      sessionStorage.removeItem(KEY_STORE);
+      sessionStorage.removeItem(KEY_REMEMBER);
+    }
+  }
+
+  function setStatus(text, isErr) {
+    $("status").textContent = text || "";
+    $("status").classList.toggle("err", !!isErr);
+  }
+  function setConn(ok, text) {
+    $("connDot").classList.toggle("on", !!ok);
+    $("connText").textContent = text;
+  }
+  function base() { return ($("server").value.trim() || DEFAULT_SERVER).replace(/\/+$/, ""); }
+  function unreachable() {
+    const safari = /^((?!chrome|android|crios|fxios).)*safari/i.test(navigator.userAgent) && location.protocol === "https:";
+    return `Yerel sunucuya ulaşılamadı (${base()}). Sunucu çalışıyor mu? Terminalde: ` +
+      `signer_study/free_translation/run_server.sh` +
+      (safari ? ` — Safari, https sayfalardan yerel sunucuya bağlantıyı engelleyebilir: sayfayı ${base()}/ adresinden açın.`
+              : ` Tarayıcı "yerel ağa erişim" izni sorarsa izin verin.`);
+  }
+
+  async function health(quiet) {
+    try {
+      const r = await fetch(base() + "/health", { cache: "no-store" });
+      const j = await r.json();
+      if (!j.ready) { setConn(false, "sunucu yükleniyor…"); return j; }
+      if (j.load_error) { setConn(false, "sunucu hatası"); if (!quiet) setStatus("Sunucu yüklenemedi: " + j.load_error, true); return j; }
+      const hasKey = j.claude_key || !!pageKey();
+      setConn(true, hasKey ? `bağlı · ${j.model}` : "bağlı · API anahtarı yazın");
+      const av = document.querySelector('input[name=figure][value=avatar]');
+      av.disabled = !j.figures.avatar;
+      if (!j.figures.avatar) document.querySelector('input[name=figure][value=skeleton]').checked = true;
+      if (!quiet) {
+        if (j.claude_key) setStatus("Sunucu hazır.");
+        else if (pageKey()) setStatus("Sunucu hazır. Çeviri bu sekmedeki API anahtarıyla yapılacak.");
+        else setStatus("Sunucu hazır. Claude için API anahtarını yazın (veya Gelişmiş’ten gloss’u elle girin).");
+      }
+      return j;
+    } catch (e) {
+      setConn(false, "sunucu yok");
+      if (!quiet) setStatus(unreachable(), true);
+      return null;
+    }
+  }
+
+  function startPolling(t0) {
+    stopPolling();
+    pollTimer = setInterval(async () => {
+      const secs = Math.round((Date.now() - t0) / 1000);
+      try {
+        const p = await (await fetch(base() + "/progress", { cache: "no-store" })).json();
+        const q = p.queued ? ` · sırada ${p.queued} istek` : "";
+        setStatus(`${p.busy ? p.stage_text : "Sırada bekleniyor…"} (${secs} sn${q})`);
+      } catch (e) { setStatus(`Çalışıyor… (${secs} sn)`); }
+    }, 1000);
+  }
+  function stopPolling() { if (pollTimer) clearInterval(pollTimer); pollTimer = null; }
+
+  async function translate() {
+    if (busy) return;
+    const sentence = $("sentence").value.trim();
+    const gloss = $("gloss").value.trim();
+    const figure = document.querySelector("input[name=figure]:checked").value;
+    if (!sentence && !gloss) { setStatus("Lütfen bir Türkçe cümle yazın.", true); $("sentence").focus(); return; }
+    localStorage.setItem("tidFreeServer", base());
+    saveKeyPref();
+    busy = true; $("go").disabled = true;
+    const t0 = Date.now();
+    setStatus(gloss ? "İstek gönderiliyor…" : "Claude gloss üretiyor…");
+    startPolling(t0);
+    try {
+      let r;
+      try {
+        const payload = { sentence, figure, gloss: gloss || undefined };
+        const headers = { "Content-Type": "application/json" };
+        const key = pageKey();
+        if (key) {
+          payload.api_key = key;
+          headers.Authorization = "Bearer " + key;
+        }
+        r = await fetch(base() + "/translate", {
+          method: "POST", headers,
+          body: JSON.stringify(payload),
+        });
+      } catch (e) { stopPolling(); setStatus(unreachable(), true); setConn(false, "sunucu yok"); return; }
+      let j = null;
+      try { j = await r.json(); } catch (e) { /* not JSON */ }
+      if (!r.ok || !j || !j.ok) { stopPolling(); setStatus((j && j.error) || `Sunucu hatası (HTTP ${r.status}).`, true); return; }
+      setStatus("Video indiriliyor…");
+      // fetch the video as a blob: works from https pages where <video src="http://127.0.0.1…"> may be blocked
+      const vr = await fetch(base() + j.video_path, { cache: "no-store" });
+      if (!vr.ok) throw new Error("video " + vr.status);
+      const blob = await vr.blob();
+      stopPolling();
+      show(j, blob);
+      const total = ((Date.now() - t0) / 1000).toFixed(1);
+      setStatus(`Hazır (${total} sn${j.cached ? ", önbellekten" : ""}).`);
+    } catch (e) {
+      stopPolling(); setStatus("Video alınamadı: " + e.message, true);
+    } finally {
+      busy = false; $("go").disabled = false;
+    }
+  }
+
+  function show(j, blob) {
+    if (blobUrl) URL.revokeObjectURL(blobUrl);
+    blobUrl = URL.createObjectURL(blob);
+    video.src = blobUrl;
+    video.playbackRate = $("slow").getAttribute("aria-pressed") === "true" ? 0.5 : 1;
+    $("download").href = blobUrl;
+    $("download").download = `tid_${j.figure}.mp4`;
+    $("gGloss").textContent = j.gloss;
+    $("gSource").textContent = j.gloss_source === "manual" ? "elle girildi" : `Claude (${j.model})${j.gloss_source === "claude-cache" ? ", önbellekten" : ""}`;
+    $("gRewritten").textContent = j.rewritten_gloss;
+    const tb = $("tokens"); tb.innerHTML = "";
+    j.tokens.forEach((t) => {
+      const tr = document.createElement("tr");
+      if (!t.found) tr.className = "missing";
+      const a = document.createElement("td"); a.textContent = t.label;
+      const b = document.createElement("td"); b.textContent = t.strategy_tr;
+      tr.append(a, b); tb.appendChild(tr);
+    });
+    const tl = $("timeline"); tl.innerHTML = ""; segEls = []; segs = j.segments || [];
+    segs.forEach((sg) => {
+      const el = document.createElement("button");
+      el.type = "button"; el.className = "seg " + (sg.kind || ""); el.title = sg.strategy || "";
+      const g = document.createElement("div"); g.className = "g"; g.textContent = sg.gloss; el.appendChild(g);
+      el.onclick = () => { video.currentTime = sg.start; video.play(); };
+      segEls.push(el); tl.appendChild(el);
+    });
+    j.tokens.filter((t) => !t.found).forEach((t) => {
+      const el = document.createElement("span"); el.className = "seg missing"; el.title = "sözlükte bulunamadı";
+      el.textContent = t.token; tl.appendChild(el);
+    });
+    const tm = j.timing || {};
+    $("timing").textContent = `Video ${j.video_seconds} sn · işlem ${j.seconds} sn` +
+      (j.cached ? " (önbellek)" : ` (gloss ${tm.gloss} sn, sentez ${tm.synthesis} sn, çizim ${tm.render} sn)`);
+    $("result").classList.remove("hidden");
+    video.play().catch(() => {});
+  }
+
+  video.addEventListener("timeupdate", () => {
+    const t = video.currentTime;
+    segs.forEach((sg, i) => segEls[i].classList.toggle("playing", t >= sg.start && t < sg.end));
+  });
+  $("replay").onclick = () => { video.currentTime = 0; video.play(); };
+  $("slow").onclick = (e) => {
+    const on = e.currentTarget.getAttribute("aria-pressed") !== "true";
+    e.currentTarget.setAttribute("aria-pressed", on); video.playbackRate = on ? 0.5 : 1;
+  };
+  $("loop").onclick = (e) => {
+    const on = e.currentTarget.getAttribute("aria-pressed") !== "true";
+    e.currentTarget.setAttribute("aria-pressed", on); video.loop = on;
+  };
+  $("go").onclick = translate;
+  $("sentence").addEventListener("keydown", (e) => { if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) translate(); });
+  $("check").onclick = () => { localStorage.setItem("tidFreeServer", base()); health(false); };
+  $("rememberKey").onchange = saveKeyPref;
+  $("apiKey").addEventListener("change", saveKeyPref);
+  $("safariHint").onclick = (e) => {
+    e.preventDefault();
+    setStatus(`Safari, GitHub Pages (https) sayfasından bilgisayardaki sunucuya (http://127.0.0.1) bağlantıyı engelleyebilir. ` +
+      `O durumda aynı sayfayı sunucunun kendisinden açın: ${base()}/ — ya da Chrome/Firefox kullanın.`);
+  };
+  if (params.get("s")) $("sentence").value = params.get("s");
+  health(false);
+  setInterval(() => { if (!busy) health(true); }, 15000);
+})();
+</script>
+</body>
+</html>

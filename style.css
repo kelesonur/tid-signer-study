@@ -1,5 +1,6 @@
 /* Plain black-and-white experimental layout, Times throughout. */
 :root { --ink: #000; --bg: #fff; --grey: #555; --line: #000; --light: #eee; }
+html { color-scheme: light; }
 * { box-sizing: border-box; }
 html, body { margin: 0; padding: 0; }
 body {
@@ -22,7 +23,8 @@ small, .muted { color: var(--grey); }
 .progress-bar { height: 100%; width: 0; background: var(--ink); }
 .save-status { font-size: .85rem; white-space: nowrap; }
 .save-status.err { font-weight: bold; }
-.foot { display: flex; justify-content: space-between; padding: 8px 16px; font-size: .8rem; color: var(--grey); }
+.foot { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 8px 16px; font-size: .8rem; color: var(--grey); }
+.foot a { color: inherit; }
 
 .card { padding: 0; margin-bottom: 16px; }
 .grid2 { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr); gap: 28px; align-items: start; }
@@ -91,9 +93,30 @@ input[type=checkbox] { accent-color: #000; }
 
 .pair { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
 @media (max-width: 760px) { .pair { grid-template-columns: 1fr; } }
-.pair .label { font-weight: bold; font-size: 1.15rem; margin-bottom: 4px; }
+.pair .label, .clip-letter { font-weight: bold; font-size: 1.15rem; margin-bottom: 4px; }
 .choice { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 14px; }
 
 .error { font-weight: bold; font-style: italic; }
 .moderator { border: 1px dashed var(--line); padding: 8px; }
 .hidden { display: none !important; }
+
+/* STUDY_V5_2026_10_05: Deaf study, large 1-5 buttons */
+.scale5 { margin: 16px 0; }
+.scale5 .q { font-weight: bold; font-size: 1.1rem; }
+.scale5 .opts5 { display: grid; grid-template-columns: repeat(5, minmax(0,1fr)); gap: 6px; margin-top: 8px; }
+.scale5 .opts5 button { min-height: 52px; font-size: 1.2rem; }
+.scale5 .opts5 button[aria-pressed="true"] { background: var(--ink); color: var(--bg); }
+.scale5 .ends { display: flex; justify-content: space-between; gap: 8px; font-size: .95rem; color: var(--grey); margin-top: 4px; }
+/* STUDY_V5B */
+.scale .opts.opts3, .scale5 .opts5.opts3 { grid-template-columns: repeat(3, minmax(0,1fr)); }
+.scale5 .opts5.opts3 button { font-size: 1.05rem; }
+.deaf-understand, .deaf-rate { margin-top: 18px; padding-top: 12px; border-top: 1px solid var(--line); }
+.deaf-understand textarea { min-height: 90px; font-size: 1.05rem; }
+.deaf-rate .source { font-size: 1.15rem; margin-bottom: 8px; }
+.meaning-clip { border-top: 1px solid var(--line); margin-top: 12px; padding-top: 8px; }
+.meaning-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.meaning-head h3 { margin: 0; }
+/* STUDY_V5C */
+.none-btn { display: block; width: 100%; min-height: 52px; font-size: 1.1rem; margin: 8px 0 4px; }
+.none-btn[aria-pressed="true"] { background: var(--ink); color: var(--bg); }
+.scale .opts { grid-template-columns: repeat(5, minmax(0,1fr)); }
