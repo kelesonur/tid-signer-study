@@ -125,7 +125,7 @@
       ex_break_title: "Ara",
       ex_break_text: "Yarıdasınız. İsterseniz şimdi ara verebilirsiniz. Aynı bağlantıyı açınca kaldığınız yerden devam edersiniz.",
       ex_break_next: "Devam et",
-      list_expert_hint: "İlk izlenen koşulu dengeler (P01→L0, P02→L1, P03→L2).",
+      list_expert_hint: "A her zaman bizim avatarımız; B ve C (altın glos avatarı, gerçek işaretçi) her cümlede rastgele sırada.",
       need_understand: "Lütfen ne anladığınızı yazın ya da \"Hiçbir şey anlamadım\" seçin.",
       pair_intro_title: "İkinci bölüm: karşılaştırma",
       pair_title: "Hangisi daha iyi?",
@@ -243,7 +243,7 @@
       ex_break_title: "Break",
       ex_break_text: "You are halfway through. Take a break if you like. Open the same link again to continue where you stopped.",
       ex_break_next: "Continue",
-      list_expert_hint: "Balances which condition is shown first (P01→L0, P02→L1, P03→L2).",
+      list_expert_hint: "A is always our avatar; B and C (gold-gloss avatar, real signer) are in random order per sentence.",
       need_understand: "Please write what you understood or tick \"I did not understand anything\".",
       pair_intro_title: "Part two: comparison",
       pair_title: "Which one is better?",
@@ -511,7 +511,10 @@
     const rand = rng(hashStr(S.pid + "|expert|" + STUDY.studyId));
     const conds = expertConds();
     const ours = expertOurs();
-    const firstCond = conds.length ? conds[(S.list || 0) % conds.length] : ours;
+    // OURS_FIRST_2026_10_06 (Onur): video A is always our avatar, so every expert's blind
+    // comprehension (written meaning before the Turkish sentence) is of our translation; the
+    // gold-gloss avatar and the real signer follow in a per-sentence random order (B / C).
+    const firstCond = ours;
     const letters = ["A", "B", "C", "D", "E", "F"];
     const plan = [{ kind: "consent" }, { kind: "background" }, { kind: "instructions" }];
     (STUDY.practice || []).forEach((it, i) => {
