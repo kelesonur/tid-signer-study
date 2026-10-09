@@ -305,8 +305,27 @@
     // pick a localized value from {tr, en} objects or plain strings
     if (obj == null) return "";
     if (typeof obj === "string") return obj;
-    return obj[lang] || obj.tr || obj.en || "";
+    return subsetCounts(obj[lang] || obj.tr || obj.en || "");
   };
+  // BEST13_P15_2026_10_09 (Onur): expert code P15 sees only the 12 best-rated test sentences
+  // (plus the usual practice sentence 656-01 = best 13). All other codes see the full study.
+  const SUBSET_BY_PID = {
+    P15: ["it_02-01", "it_486-03", "it_948-01", "it_63-01", "it_1201-01", "it_1672-02",
+          "it_1546-01", "it_820-01", "it_1003-03", "it_1663-01", "it_78-01", "it_573-04"],
+  };
+  let SUBSET_N = 0;  // set when a subset plan is built; used to fix "25 sentences / 75 videos" texts
+  function subsetCounts(str) {
+    if (typeof str !== "string") return str;
+    if (!SUBSET_N) {
+      try {
+        const ids = S.mode === "expert" && SUBSET_BY_PID[String(S.pid || "").trim().toUpperCase()];
+        if (ids) SUBSET_N = items.filter((it) => ids.includes(it.id)).length;
+      } catch (e) { /* state not ready yet */ }
+    }
+    if (!SUBSET_N) return str;
+    return str.replace(/\b25 cümle/g, SUBSET_N + " cümle").replace(/\b75 video/g, (SUBSET_N * 3) + " video")
+      .replace(/\b25 sentences/g, SUBSET_N + " sentences").replace(/\b75 videos/g, (SUBSET_N * 3) + " videos");
+  }
   const tagLabel = (row) => (lang === "en" ? row[2] : row[1]);
 
   // ----------------------------------------------------------------- utils
@@ -524,7 +543,10 @@
       const clips = use.map((c, k) => ({ condition: c, label: letters[k] || String(k + 1) }));
       plan.push({ kind: "exitem", practice: true, itemId: it.id, clips, firstCondition: clips[0] && clips[0].condition, n: i + 1, total: STUDY.practice.length });
     });
-    const order = STUDY.design.randomizeItems === false ? items.slice() : shuffle(items, rand);
+    const subsetIds = SUBSET_BY_PID[String(S.pid || "").trim().toUpperCase()];
+    const pool = subsetIds ? items.filter((it) => subsetIds.includes(it.id)) : items;
+    SUBSET_N = subsetIds ? pool.length : 0;
+    const order = STUDY.design.randomizeItems === false ? pool.slice() : shuffle(pool, rand);
     const half = Math.floor(order.length / 2);
     order.forEach((it, i) => {
       if (i > 0 && i === half) plan.push({ kind: "break", n: i, total: order.length });
