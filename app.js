@@ -312,7 +312,15 @@
   // (with gold-gloss and real-signer videos), so their practice sentence is 280-04 instead.
   const BEST13 = ["it_656-01", "it_02-01", "it_486-03", "it_948-01", "it_63-01", "it_1201-01", "it_1672-02",
                   "it_1546-01", "it_820-01", "it_1003-03", "it_1663-01", "it_78-01", "it_573-04"];
-  const SUBSET_BY_PID = { P15: BEST13, P16: BEST13, P17: BEST13 };
+  // D15_D17_2026_10_09: Deaf codes D15, D16, D17 get the same 13 sentences (one video each, ours or real)
+  const SUBSET_BY_PID = { P15: BEST13, P16: BEST13, P17: BEST13, D15: BEST13, D16: BEST13, D17: BEST13 };
+  const subsetIdsFor = () => {
+    const k = pidKey(), ids = SUBSET_BY_PID[k];
+    if (!ids) return null;
+    if (S.mode === "expert" && k[0] === "P") return ids;
+    if (S.mode === "deaf" && k[0] === "D") return ids;
+    return null;
+  };
   const SUBSET_PRACTICE = "it_280-04";
   const pidKey = () => String((typeof S !== "undefined" && S.pid) || "").trim().toUpperCase();
   let SUBSET_N = 0;  // set when a subset plan is built; used to fix "25 sentences / 75 videos" texts
@@ -320,11 +328,12 @@
     if (typeof str !== "string") return str;
     if (!SUBSET_N) {
       try {
-        const ids = S.mode === "expert" && SUBSET_BY_PID[String(S.pid || "").trim().toUpperCase()];
+        const ids = subsetIdsFor();
         if (ids) SUBSET_N = ids.length;
       } catch (e) { /* state not ready yet */ }
     }
     if (!SUBSET_N) return str;
+    if (S.mode === "deaf") return str.replace(/\b25 video/g, SUBSET_N + " video");
     return str.replace(/\b25 cümle/g, SUBSET_N + " cümle").replace(/\b75 video/g, (SUBSET_N * 3) + " video")
       .replace(/\b25 sentences/g, SUBSET_N + " sentences").replace(/\b75 videos/g, (SUBSET_N * 3) + " videos");
   }
@@ -493,6 +502,9 @@
   // Deaf study (STUDY_V5_2026_10_05): every sentence once; the condition alternates over the
   // items and the list (Latin square), so each list sees about half avatar, half real signer.
   function buildDeafPlan() {
+    ensureSubset();
+    const deafIds = subsetIdsFor();
+    const pool = deafIds ? items.filter((it) => deafIds.includes(it.id)) : items;
     const rand = rng(hashStr(S.pid + "|deaf|" + STUDY.studyId));
     const conds = deafConds();
     const plan = [{ kind: "consent" }, { kind: "background" }, { kind: "instructions" }];
@@ -502,14 +514,14 @@
     });
     // condition of each sentence: fixed by its index and the list (Latin square)
     const condOf = (it) => {
-      let c = conds[(items.indexOf(it) + (S.list || 0)) % conds.length];
+      let c = conds[(pool.indexOf(it) + (S.list || 0)) % conds.length];
       if (!(it.conditions && it.conditions[c] && it.conditions[c].video)) c = conds.find((k) => it.conditions && it.conditions[k] && it.conditions[k].video);
       return c;
     };
     // ORDER_BALANCE_2026_10_06 (Onur: too many real videos came one after another): random order,
     // but never more than 2 videos of the same condition in a row, and each half of the session
     // has about the same number of each condition (re-drawn with the participant's seed until both hold)
-    let order = items.slice();
+    let order = pool.slice();
     if (STUDY.design.randomizeItems !== false) {
       const ok = (o) => {
         let run = 1;
@@ -518,7 +530,7 @@
         const a = cnt(o.slice(0, h)), b = cnt(o.slice(h));
         return conds.every((c) => Math.abs((a[c] || 0) - (b[c] || 0)) <= 1);
       };
-      for (let tries = 0; tries < 5000; tries++) { order = shuffle(items, rand); if (ok(order)) break; }
+      for (let tries = 0; tries < 5000; tries++) { order = shuffle(pool, rand); if (ok(order)) break; }
     }
     const half = Math.floor(order.length / 2);
     order.forEach((it, i) => {
@@ -546,7 +558,7 @@
       plan.push({ kind: "exitem", practice: true, itemId: it.id, clips, firstCondition: clips[0] && clips[0].condition, n: i + 1, total: STUDY.practice.length });
     });
     ensureSubset();
-    const subsetIds = SUBSET_BY_PID[pidKey()];
+    const subsetIds = subsetIdsFor();
     const pool = subsetIds ? items.filter((it) => subsetIds.includes(it.id)) : items;
     SUBSET_N = subsetIds ? pool.length : 0;
     const order = STUDY.design.randomizeItems === false ? pool.slice() : shuffle(pool, rand);
@@ -798,7 +810,7 @@
 
   function ensureSubset() {
     // adds test item it_656-01 (from the practice entry) and swaps the practice sentence for subset codes
-    const ids = S.mode === "expert" && SUBSET_BY_PID[pidKey()];
+    const ids = subsetIdsFor();
     if (!ids || ensureSubset.done) return;
     ensureSubset.done = true;
     const pr = (STUDY.practice || []).find((p) => p.sample_id === "656-01");
