@@ -307,19 +307,21 @@
     if (typeof obj === "string") return obj;
     return subsetCounts(obj[lang] || obj.tr || obj.en || "");
   };
-  // BEST13_P15_2026_10_09 (Onur): expert code P15 sees only the 12 best-rated test sentences
-  // (plus the usual practice sentence 656-01 = best 13). All other codes see the full study.
-  const SUBSET_BY_PID = {
-    P15: ["it_02-01", "it_486-03", "it_948-01", "it_63-01", "it_1201-01", "it_1672-02",
-          "it_1546-01", "it_820-01", "it_1003-03", "it_1663-01", "it_78-01", "it_573-04"],
-  };
+  // BEST13 subset for expert codes P15, P16, P17: 13 best-rated sentences; all other codes see the full study.
+  // P15_P17_2026_10_09: the former practice sentence 656-01 is a rated test item for these codes
+  // (with gold-gloss and real-signer videos), so their practice sentence is 280-04 instead.
+  const BEST13 = ["it_656-01", "it_02-01", "it_486-03", "it_948-01", "it_63-01", "it_1201-01", "it_1672-02",
+                  "it_1546-01", "it_820-01", "it_1003-03", "it_1663-01", "it_78-01", "it_573-04"];
+  const SUBSET_BY_PID = { P15: BEST13, P16: BEST13, P17: BEST13 };
+  const SUBSET_PRACTICE = "it_280-04";
+  const pidKey = () => String((typeof S !== "undefined" && S.pid) || "").trim().toUpperCase();
   let SUBSET_N = 0;  // set when a subset plan is built; used to fix "25 sentences / 75 videos" texts
   function subsetCounts(str) {
     if (typeof str !== "string") return str;
     if (!SUBSET_N) {
       try {
         const ids = S.mode === "expert" && SUBSET_BY_PID[String(S.pid || "").trim().toUpperCase()];
-        if (ids) SUBSET_N = items.filter((it) => ids.includes(it.id)).length;
+        if (ids) SUBSET_N = ids.length;
       } catch (e) { /* state not ready yet */ }
     }
     if (!SUBSET_N) return str;
@@ -543,7 +545,8 @@
       const clips = use.map((c, k) => ({ condition: c, label: letters[k] || String(k + 1) }));
       plan.push({ kind: "exitem", practice: true, itemId: it.id, clips, firstCondition: clips[0] && clips[0].condition, n: i + 1, total: STUDY.practice.length });
     });
-    const subsetIds = SUBSET_BY_PID[String(S.pid || "").trim().toUpperCase()];
+    ensureSubset();
+    const subsetIds = SUBSET_BY_PID[pidKey()];
     const pool = subsetIds ? items.filter((it) => subsetIds.includes(it.id)) : items;
     SUBSET_N = subsetIds ? pool.length : 0;
     const order = STUDY.design.randomizeItems === false ? pool.slice() : shuffle(pool, rand);
@@ -793,7 +796,33 @@
     pid.focus();
   }
 
+  function ensureSubset() {
+    // adds test item it_656-01 (from the practice entry) and swaps the practice sentence for subset codes
+    const ids = S.mode === "expert" && SUBSET_BY_PID[pidKey()];
+    if (!ids || ensureSubset.done) return;
+    ensureSubset.done = true;
+    const pr = (STUDY.practice || []).find((p) => p.sample_id === "656-01");
+    if (pr && !itemById["it_656-01"]) {
+      const it = JSON.parse(JSON.stringify(pr));
+      const segs = ((pr.conditions || {}).avatar || {}).segments || [];
+      it.id = "it_656-01";
+      it.conditions = {
+        avatar: JSON.parse(JSON.stringify(pr.conditions.avatar)),
+        gold: { video: "media/gold/656-01.mp4", segments: JSON.parse(JSON.stringify(segs)) },
+        reference: { video: "media/reference/656-01.mp4", segments: [] },
+      };
+      items.push(it); itemById[it.id] = it;
+    }
+    const np = itemById[SUBSET_PRACTICE];
+    if (np) {
+      const prac = JSON.parse(JSON.stringify(np));
+      prac.id = "prac_" + np.sample_id;
+      prac.conditions = { avatar: JSON.parse(JSON.stringify(np.conditions.avatar)) };
+      STUDY.practice = [prac];
+    }
+  }
   function begin() {
+    ensureSubset();
     const saved = store.get(storeKey());
     if (saved && saved.plan && saved.plan.length && saved.step > 0) {
       app.innerHTML = "";
